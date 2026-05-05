@@ -5,9 +5,15 @@ const useSocket = (setData, setHistory, setAlerts, thresholds) => {
 
   useEffect(() => {
 
-    // ✅ CONNECT TO PRODUCTION BACKEND
-    const socket = io("https://mcb-dashboard.onrender.com", {
-      transports: ["websocket"], // 🔥 IMPORTANT for Render
+    // ✅ USE ENV VARIABLE (NOT HARDCODE)
+    const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
+    // ❗ WHY:
+    // Hardcoding = bad practice
+    // Env = scalable (dev / prod / staging)
+
+    const socket = io(BACKEND_URL, {
+      transports: ["websocket"], // 🔥 Render ke liye required
       reconnection: true,
     });
 
@@ -16,7 +22,7 @@ const useSocket = (setData, setHistory, setAlerts, thresholds) => {
       console.log("✅ Socket connected:", socket.id);
     });
 
-    // ❌ CONNECTION ERROR
+    // ❌ ERROR HANDLING (IMPORTANT DEBUG)
     socket.on("connect_error", (err) => {
       console.log("❌ Socket error:", err.message);
     });
@@ -48,6 +54,8 @@ const useSocket = (setData, setHistory, setAlerts, thresholds) => {
 
         const updated = [...prev, newPoint];
 
+        // ❗ WHY LIMIT?
+        // memory leak avoid + chart performance maintain
         if (updated.length > 20) updated.shift();
 
         return updated;
@@ -56,6 +64,7 @@ const useSocket = (setData, setHistory, setAlerts, thresholds) => {
       // -----------------------------
       // ALERT SYSTEM
       // -----------------------------
+
       if (last && Math.abs(d.current - last.current) > 3) {
         setAlerts((prev) => [
           {
@@ -63,7 +72,7 @@ const useSocket = (setData, setHistory, setAlerts, thresholds) => {
             message: "⚡ Spike detected",
             time: new Date().toLocaleTimeString(),
           },
-          ...prev.slice(0, 4),
+          ...prev.slice(0, 4), // ❗ limit alerts to 5
         ]);
       }
 
@@ -113,8 +122,16 @@ const useSocket = (setData, setHistory, setAlerts, thresholds) => {
 
     });
 
-    // CLEANUP
-    return () => socket.disconnect();
+    // -----------------------------
+    // CLEANUP (VERY IMPORTANT)
+    // -----------------------------
+    return () => {
+      socket.disconnect();
+
+      // ❗ WHY:
+      // multiple socket connections avoid
+      // memory leak prevent
+    };
 
   }, [setData, setHistory, setAlerts, thresholds]);
 
