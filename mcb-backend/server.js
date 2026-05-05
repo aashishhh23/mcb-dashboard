@@ -10,12 +10,19 @@ const cors = require("cors");
 const http = require("http");
 const { Server } = require("socket.io");
 
-const { SerialPort } = require("serialport");
-const { ReadlineParser } = require("@serialport/parser-readline");
+//  DON'T import serialport globally
+// Reason:
+// - Render (cloud) doesn't support hardware
+// - It crashes deployment
+// const { SerialPort } = require("serialport");
+// const { ReadlineParser } = require("@serialport/parser-readline");
+
 const dataRoutes = require("./routes/dataRoutes");
 
 
-// connect DB
+// --------------------------------------
+//  DB CONNECT
+// --------------------------------------
 connectDB();
 
 
@@ -24,12 +31,18 @@ connectDB();
 // --------------------------------------
 
 const app = express();
-app.use(cors({
-  origin: ["http://localhost:5173", "http://localhost:5174"],
-}));
+
+//  Production tip:
+// For now "*" is fine (easy deployment)
+// Later restrict to your frontend URL
+app.use(cors({ origin: "*" }));
+
 const server = http.createServer(app);
+
+// API route
 app.use("/api", dataRoutes);
 
+// Socket server
 const io = new Server(server, {
   cors: { origin: "*" },
 });
@@ -39,20 +52,26 @@ const io = new Server(server, {
 //  FEATURE FLAG
 // --------------------------------------
 
+// true  → fake data (cloud safe)
+// false → real Arduino (local only)
 const USE_FAKE = true;
 
 
 // --------------------------------------
-//  SERIAL (REAL MODE)
+//  SERIAL (REAL MODE - ONLY LOCAL)
 // --------------------------------------
 
 let port;
 let parser;
 
 if (!USE_FAKE) {
+  //  Import ONLY when needed
+  // Reason: Avoid crash on Render
+  const { SerialPort } = require("serialport");
+  const { ReadlineParser } = require("@serialport/parser-readline");
 
   port = new SerialPort({
-    path: "COM4",
+    path: "COM4", // change based on system
     baudRate: 115200,
   });
 
@@ -66,7 +85,7 @@ if (!USE_FAKE) {
 
       io.emit("live-data", data);
 
-      //  SAVE TO DB
+      // Save to DB
       await Data.create(data);
 
     } catch (err) {
@@ -77,7 +96,7 @@ if (!USE_FAKE) {
 
 
 // --------------------------------------
-//  FAKE MODE DATA
+//  FAKE DATA (DEPLOYMENT MODE)
 // --------------------------------------
 
 if (USE_FAKE) {
@@ -96,7 +115,7 @@ if (USE_FAKE) {
 
     io.emit("live-data", data);
 
-    //  SAVE FAKE DATA ALSO
+    // Save to DB
     try {
       await Data.create(data);
     } catch (err) {
@@ -113,10 +132,12 @@ if (USE_FAKE) {
 
 io.on("connection", (socket) => {
 
-  console.log(" Client connected:", socket.id);
+  console.log("Client connected:", socket.id);
 
 
-  //  RELAY CONTROL
+  // -----------------------------
+  // RELAY CONTROL
+  // -----------------------------
   socket.on("relay-toggle", (data) => {
 
     console.log("Relay Command:", data);
@@ -127,19 +148,10 @@ io.on("connection", (socket) => {
     });
 
     if (!USE_FAKE && port) {
-
-      port.write(command + "\n", (err) => {
-        if (err) {
-          console.log(" Serial Error:", err.message);
-        } else {
-          console.log("➡ Sent to Arduino:", command);
-        }
-      });
-
+      // Real Arduino
+      port.write(command + "\n");
     } else {
-
-      console.log(" FAKE MODE →", command);
-
+      // Fake mode (UI simulation)
       setTimeout(() => {
         socket.emit("relay-status", {
           relay: data.relay,
@@ -150,27 +162,29 @@ io.on("connection", (socket) => {
   });
 
 
-  //  CURRENT CONTROL
+  // -----------------------------
+  // CURRENT CONTROL
+  // -----------------------------
   socket.on("set-current", (data) => {
 
     console.log("Current Set:", data);
 
     if (!USE_FAKE && port) {
-
       const command = JSON.stringify({
         cmd: "set-current",
         value: data.value,
       });
 
       port.write(command + "\n");
-
     } else {
-      console.log(" FAKE CURRENT:", data.value);
+      console.log("FAKE CURRENT:", data.value);
     }
   });
 
 
-  //  DEVICE STATUS
+  // -----------------------------
+  // DEVICE STATUS (FAKE)
+  // -----------------------------
   if (USE_FAKE) {
     setInterval(() => {
       socket.emit("device-status", "connected");
@@ -179,21 +193,16 @@ io.on("connection", (socket) => {
 
 
   socket.on("disconnect", () => {
-    console.log(" Client disconnected");
+    console.log("Client disconnected");
   });
 
 });
 
 
 // --------------------------------------
-//  SERVER START
+//  SERVER START (DEPLOYMENT SAFE)
 // --------------------------------------
 
-// server.listen(5001, () => {
-//   console.log(" Server running at http://localhost:5001");
-// });
-
-//FOR DEPLOYMENT
 const PORT = process.env.PORT || 5001;
 
 server.listen(PORT, () => {
