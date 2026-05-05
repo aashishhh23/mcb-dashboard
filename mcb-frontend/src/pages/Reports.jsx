@@ -30,25 +30,53 @@ const Reports = () => {
   const BASE_URL = "https://mcb-dashboard.onrender.com";
 
 
-  // -----------------------------
-  // FETCH DATA
-  // -----------------------------
-  useEffect(() => {
+ 
+// -----------------------------
+// FETCH DATA
+// -----------------------------
+useEffect(() => {
 
-    setLoading(true);
+  setLoading(true);
 
-    fetch(`${BASE_URL}/api/data/${filter}?page=${page}`)
-      .then(res => res.json())
-      .then(res => {
+  fetch(`${BASE_URL}/api/data/${filter}?page=${page}`)
+    .then(res => {
+      console.log("API STATUS:", res.status);  
+      //  WHY:
+      // To check if backend is responding (200, 500, 404, etc)
+
+      return res.json();
+    })
+    .then(res => {
+      console.log("DATA:", res);  
+      //  WHY:
+      // To verify backend is actually sending data
+
+      // IMPORTANT FIX
+      // Backend may send:
+      // { data: [...] }
+      // OR directly [...]
+      // So we handle both safely
+
+      if (Array.isArray(res)) {
         setData(res);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.log("Fetch Error:", err);
-        setLoading(false);
-      });
+      } else if (res.data) {
+        setData(res.data);
+      } else {
+        console.log("Unexpected format:", res);
+        setData([]);
+      }
 
-  }, [filter, page]);
+      setLoading(false);
+    })
+    .catch(err => {
+      console.log("Fetch Error:", err);  
+      //  WHY:
+      // To catch network / CORS / server errors
+
+      setLoading(false);
+    });
+
+}, [filter, page]);
 
 
   // -----------------------------
