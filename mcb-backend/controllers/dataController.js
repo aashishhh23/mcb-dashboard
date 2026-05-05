@@ -17,11 +17,11 @@ exports.getData = async (req, res) => {
 
     const timeAgo = new Date(Date.now() - minutes * 60 * 1000);
 
-    const data = await Data.find({
-      createdAt: { $gte: timeAgo }
-    })
-      .sort({ createdAt: -1 })
-      .limit(50);
+const data = await Data.find({
+  createdAt: { $exists: true, $gte: timeAgo }
+})
+.sort({ createdAt: -1 })
+.limit(50);
 
     res.json(data);
 
