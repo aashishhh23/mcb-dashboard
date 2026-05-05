@@ -77,29 +77,29 @@ cd mcb-frontend
 npm install
 npm run dev
 
-###🔐 Environment Variables
+##🔐 Environment Variables
 
 Create .env in backend:
 
 MONGO_URI=your_mongodb_connection_string
 
-### 🌐 Deployment
+## 🌐 Deployment
 Frontend → Vercel
 Backend → Render
 Database → MongoDB Atlas
 
-###🧠 Key Learnings
+## 🧠 Key Learnings
 Real-time communication using WebSockets
 Handling large data using pagination
 Designing scalable system architecture
 Managing state efficiently in React
 
-###🚀 Future Improvements
+##🚀 Future Improvements
 Authentication & role-based access
 Multi-device support
 Advanced analytics dashboard
 Time-series database optimization
 
-###👨‍💻 Author
+##👨‍💻 Author
 
 Aashish Kumar
