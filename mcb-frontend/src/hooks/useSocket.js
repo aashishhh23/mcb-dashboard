@@ -5,44 +5,39 @@ const useSocket = (setData, setHistory, setAlerts, thresholds) => {
 
   useEffect(() => {
 
-    //  connect to backend
-    const socket = io("https://mcb-dashboard.onrender.com");
+    // ✅ CONNECT TO PRODUCTION BACKEND
+    const socket = io("https://mcb-dashboard.onrender.com", {
+      transports: ["websocket"], // 🔥 IMPORTANT for Render
+      reconnection: true,
+    });
 
+    // ✅ CONNECTION SUCCESS
+    socket.on("connect", () => {
+      console.log("✅ Socket connected:", socket.id);
+    });
 
-    //  listen for live data
+    // ❌ CONNECTION ERROR
+    socket.on("connect_error", (err) => {
+      console.log("❌ Socket error:", err.message);
+    });
+
+    // -----------------------------
+    //  LISTEN LIVE DATA
+    // -----------------------------
     socket.on("live-data", (d) => {
 
-      // -----------------------------
-      //  DETECTION LOGIC (ALL HERE)
-      // -----------------------------
+      console.log("📡 LIVE DATA:", d); // DEBUG
 
-      //  get previous value (for spike detection)
       let last;
 
       setHistory((prev) => {
-        last = prev[prev.length - 1]; // last data point
+        last = prev[prev.length - 1];
 
-        // -----------------------------
-        //  SPIKE DETECTION
-        // -----------------------------
         const isSpike =
           last && Math.abs(d.current - last.current) > 3;
 
-        // -----------------------------
-        //  TRIP DETECTION
-        // -----------------------------
         const isTrip = d.tripTime > 0;
 
-        // -----------------------------
-        //  THRESHOLD DETECTION (NEW)
-        // -----------------------------
-        const isOverCurrent = d.current > thresholds.current;
-        const isOverTemp = d.temp > thresholds.temp;
-
-
-        // -----------------------------
-        //  CREATE NEW POINT FOR GRAPH
-        // -----------------------------
         const newPoint = {
           time: Date.now(),
           voltage: d.voltage,
@@ -53,87 +48,60 @@ const useSocket = (setData, setHistory, setAlerts, thresholds) => {
 
         const updated = [...prev, newPoint];
 
-        //  performance limit
         if (updated.length > 20) updated.shift();
 
         return updated;
       });
 
-
       // -----------------------------
-      // ALERT SYSTEM (CLEAN SEPARATE)
+      // ALERT SYSTEM
       // -----------------------------
-
-      //  Spike Alert
       if (last && Math.abs(d.current - last.current) > 3) {
-        setAlerts((prev) => {
-          const updated = [
-            {
-              type: "spike",
-              message: "⚡ Spike detected",
-              time: new Date().toLocaleTimeString(),
-            },
-            ...prev,
-          ];
-
-          if (updated.length > 5) updated.pop();
-          return updated;
-        });
+        setAlerts((prev) => [
+          {
+            type: "spike",
+            message: "⚡ Spike detected",
+            time: new Date().toLocaleTimeString(),
+          },
+          ...prev.slice(0, 4),
+        ]);
       }
 
-      //  Trip Alert
       if (d.tripTime > 0) {
-        setAlerts((prev) => {
-          const updated = [
-            {
-              type: "trip",
-              message: " MCB Trip detected",
-              time: new Date().toLocaleTimeString(),
-            },
-            ...prev,
-          ];
-
-          if (updated.length > 5) updated.pop();
-          return updated;
-        });
+        setAlerts((prev) => [
+          {
+            type: "trip",
+            message: "MCB Trip detected",
+            time: new Date().toLocaleTimeString(),
+          },
+          ...prev.slice(0, 4),
+        ]);
       }
 
-      //  Threshold Alerts (NEW)
       if (d.current > thresholds.current) {
-        setAlerts((prev) => {
-          const updated = [
-            {
-              type: "danger",
-              message: " Current exceeded threshold",
-              time: new Date().toLocaleTimeString(),
-            },
-            ...prev,
-          ];
-
-          if (updated.length > 5) updated.pop();
-          return updated;
-        });
+        setAlerts((prev) => [
+          {
+            type: "danger",
+            message: "Current exceeded threshold",
+            time: new Date().toLocaleTimeString(),
+          },
+          ...prev.slice(0, 4),
+        ]);
       }
 
       if (d.temp > thresholds.temp) {
-        setAlerts((prev) => {
-          const updated = [
-            {
-              type: "danger",
-              message: " Temperature too high",
-              time: new Date().toLocaleTimeString(),
-            },
-            ...prev,
-          ];
-
-          if (updated.length > 5) updated.pop();
-          return updated;
-        });
+        setAlerts((prev) => [
+          {
+            type: "danger",
+            message: "Temperature too high",
+            time: new Date().toLocaleTimeString(),
+          },
+          ...prev.slice(0, 4),
+        ]);
       }
 
-
       // -----------------------------
-      //  UPDATE LIVE CARDS
+      // UPDATE LIVE CARDS
       // -----------------------------
       setData({
         voltage: d.voltage,
@@ -145,11 +113,10 @@ const useSocket = (setData, setHistory, setAlerts, thresholds) => {
 
     });
 
-
-    //  cleanup (important)
+    // CLEANUP
     return () => socket.disconnect();
 
-  }, [setData, setHistory, setAlerts, thresholds]); // include thresholds
+  }, [setData, setHistory, setAlerts, thresholds]);
 
 };
 
