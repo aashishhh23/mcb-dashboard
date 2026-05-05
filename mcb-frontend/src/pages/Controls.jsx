@@ -2,7 +2,7 @@ import { useState } from "react";
 import { io } from "socket.io-client";
 
 //  connect backend
-const socket = io("https://mcb-dashboard.onrender.com")
+const socket = io(import.meta.env.VITE_BACKEND_URL);
 
 const Controls = ({ thresholds, setThresholds }) => {
 
