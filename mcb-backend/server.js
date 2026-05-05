@@ -189,10 +189,16 @@ io.on("connection", (socket) => {
 //  SERVER START
 // --------------------------------------
 
-server.listen(5001, () => {
-  console.log(" Server running at http://localhost:5001");
-});
+// server.listen(5001, () => {
+//   console.log(" Server running at http://localhost:5001");
+// });
 
+//FOR DEPLOYMENT
+const PORT = process.env.PORT || 5001;
+
+server.listen(PORT, () => {
+  console.log(`Server running on ${PORT}`);
+});
 
 
 
