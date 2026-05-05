@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-
 import {
   LineChart,
   Line,
@@ -21,20 +20,31 @@ const Reports = () => {
 
 
   // -----------------------------
+  // BASE URL (PRODUCTION SAFE)
+  // -----------------------------
+
+  //  OLD (LOCAL ONLY - NOT WORK IN PRODUCTION)
+  // const BASE_URL = "http://localhost:5001";
+
+  //  NEW (RENDER BACKEND)
+  const BASE_URL = "https://mcb-dashboard.onrender.com";
+
+
+  // -----------------------------
   // FETCH DATA
   // -----------------------------
   useEffect(() => {
 
     setLoading(true);
 
-    fetch(`http://localhost:5001/api/data/${filter}?page=${page}`)
+    fetch(`${BASE_URL}/api/data/${filter}?page=${page}`)
       .then(res => res.json())
       .then(res => {
         setData(res);
         setLoading(false);
       })
       .catch(err => {
-        console.log(err);
+        console.log("Fetch Error:", err);
         setLoading(false);
       });
 
@@ -42,12 +52,14 @@ const Reports = () => {
 
 
   // -----------------------------
-  //  FIX: CREATE GRAPH DATA
+  // GRAPH DATA (SAFE FORMAT)
   // -----------------------------
   const chartData = data.map(item => ({
-    voltage: Number(item.voltage),
-    current: Number(item.current),
-    time: new Date(item.createdAt).toLocaleTimeString(),
+    voltage: Number(item.voltage || 0),
+    current: Number(item.current || 0),
+    time: item.createdAt
+      ? new Date(item.createdAt).toLocaleTimeString()
+      : "",
   }));
 
 
@@ -56,6 +68,10 @@ const Reports = () => {
   // -----------------------------
   const downloadCSV = () => {
 
+    //  BAD PRACTICE:
+    // No headers → confusing CSV
+
+    //  GOOD:
     const headers = ["Voltage", "Current", "PF", "Temp", "Trip", "Time"];
 
     const rows = data.map(item => [
@@ -106,14 +122,20 @@ const Reports = () => {
       <div className="flex gap-4 mb-4">
 
         <button
-          onClick={() => setFilter(5)}
+          onClick={() => {
+            setFilter(5);
+            setPage(1); // ✅ reset page (important)
+          }}
           className="bg-blue-500 px-4 py-2 rounded"
         >
           Last 5 min
         </button>
 
         <button
-          onClick={() => setFilter(60)}
+          onClick={() => {
+            setFilter(60);
+            setPage(1); // ✅ reset page
+          }}
           className="bg-green-500 px-4 py-2 rounded"
         >
           Last 1 hour
@@ -129,18 +151,14 @@ const Reports = () => {
       </div>
 
 
-      {/* -----------------------------
-           FIXED GRAPH
-      ----------------------------- */}
+      {/* GRAPH */}
       <div className="bg-gray-800 p-4 rounded mb-6">
 
         <ResponsiveContainer width="100%" height={300}>
           <LineChart data={chartData}>
 
             <XAxis dataKey="time" />
-
             <YAxis />
-
             <Tooltip />
 
             <Line
