@@ -6,7 +6,7 @@ const useSocket = (setData, setHistory, setAlerts, thresholds) => {
   useEffect(() => {
 
     //  connect to backend
-    const socket = io("http://localhost:5001");
+    const socket = io("https://mcb-dashboard.onrender.com");
 
 
     //  listen for live data
